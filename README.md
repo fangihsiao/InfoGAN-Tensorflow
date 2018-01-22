@@ -1,6 +1,6 @@
 # InfoGAN-tensorflow
-InfoGAN implementation in tensorflow based on the original   
-[[paper]](https://arxiv.org/abs/1606.03657)
+InfoGAN implementation in tensorflow
+### [[paper]](https://arxiv.org/abs/1606.03657)
 
 ### Dependencies
 Tensorflow(>=1.4)  
