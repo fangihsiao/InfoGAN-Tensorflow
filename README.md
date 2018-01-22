@@ -21,7 +21,7 @@ sh test.sh
 The results will be saved in `/path/to/model_dir/test`
 
 ### Results
-Modify categorical latent variable from 0 to 9(top to bottom) and 
+Modify categorical latent variable from 0 to 9(top to bottom) and  
 continuous latent variable(c1(width) or c2(rotation)) from -2 to 2(left to right)
 
 <center>
