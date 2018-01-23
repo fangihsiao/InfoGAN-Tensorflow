@@ -5,7 +5,6 @@ import cv2
 from Generator import generator
 from Discriminator import discriminator
 from tensorflow.examples.tutorials.mnist import input_data
-from matplotlib import pyplot as plt
 
 
 class InfoGan:
@@ -18,20 +17,25 @@ class InfoGan:
         #########################
         self.sess = sess
         self.args = args
-        self.summary_dir = os.path.join(self.args.model_dir, 'log')
-        self.test_dir = os.path.join(self.args.model_dir, 'test')
 
-        if not self.args.model_dir:
+        self.model_dir = args.model_dir
+
+        if not self.model_dir:
             raise ValueError('Need to provide model directory')
 
-        if not os.path.exists(self.args.model_dir):
-            os.makedirs(self.args.model_dir)
+        self.summary_dir = os.path.join(self.model_dir, 'log')
+        self.test_dir = os.path.join(self.model_dir, 'test')
+
+        if not os.path.exists(self.model_dir):
+            os.makedirs(self.model_dir)
 
         if not os.path.exists(self.summary_dir):
             os.makedirs(self.summary_dir)
 
         if not os.path.exists(self.test_dir):
             os.makedirs(self.test_dir)
+
+        self.global_step = tf.train.get_or_create_global_step()
         #########################
         #                       #
         #     Model Building    #
@@ -47,7 +51,6 @@ class InfoGan:
             self.z_rand = tf.placeholder(tf.float32, [None, args.num_rand])
 
             z = tf.concat([tf.one_hot(self.z_cat, args.num_category), self.z_cont, self.z_rand], axis=1)
-            self.z = tf.identity(z)
 
         self.g = generator(z, args)
 
@@ -93,7 +96,7 @@ class InfoGan:
 
         with tf.name_scope('optimizer'):
             g_optim = tf.train.AdamOptimizer(learning_rate=args.g_lr, beta1=0.5, beta2=0.99)
-            self.g_train_op = g_optim.minimize(self.train_g_loss, var_list=g_param)
+            self.g_train_op = g_optim.minimize(self.train_g_loss, var_list=g_param, global_step=self.global_step)
             d_optim = tf.train.AdamOptimizer(learning_rate=args.d_lr, beta1=0.5, beta2=0.99)
             self.d_train_op = d_optim.minimize(self.train_d_loss, var_list=d_param)
 
@@ -124,13 +127,12 @@ class InfoGan:
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)
 
-        checkpoint = tf.train.latest_checkpoint(self.args.model_dir)
+        checkpoint = tf.train.latest_checkpoint(self.model_dir)
         if checkpoint:
             print('Load checkpoint {}...'.format(checkpoint))
             self.saver.restore(self.sess, checkpoint)
 
         steps_per_epoch = mnist.train.labels.shape[0] // self.args.batch_size
-        counter = 0
 
         for epoch in range(self.args.epoch):
             for step in range(steps_per_epoch):
@@ -146,35 +148,34 @@ class InfoGan:
                                                                                            self.z_rand: z_rand})
 
                 g_loss, _ = self.sess.run([self.train_g_loss, self.g_train_op],
-                                             feed_dict={self.x: x_batch,
-                                                        self.z_cat: z_cat,
-                                                        self.z_cont: z_cont,
-                                                        self.z_rand: z_rand})
-                summary = self.sess.run(self.summary_op, feed_dict={self.x: x_batch,
-                                                                    self.z_cat: z_cat,
-                                                                    self.z_cont: z_cont,
-                                                                    self.z_rand: z_rand})
+                                          feed_dict={self.x: x_batch,
+                                                     self.z_cat: z_cat,
+                                                     self.z_cont: z_cont,
+                                                     self.z_rand: z_rand})
+
+                summary, global_step = self.sess.run([self.summary_op, self.global_step],
+                                                     feed_dict={self.x: x_batch, self.z_cat: z_cat,
+                                                                self.z_cont: z_cont, self.z_rand: z_rand})
                 if step % 100 == 0:
                     print('Epoch[{}/{}] Step[{}/{}] g_loss:{:.4f}, d_loss:{:.4f}'.format(epoch, self.args.epoch, step,
                                                                                          steps_per_epoch, g_loss,
                                                                                          d_loss))
 
-                summary_writer.add_summary(summary, counter)
-                counter += 1
+                summary_writer.add_summary(summary, global_step)
 
-            self.save(counter)
+            self.save(global_step)
 
     def inference(self):
 
-        if self.args.model_dir is None:
+        if self.model_dir is None:
             raise ValueError('Need to provide model directory')
 
-        checkpoint = tf.train.latest_checkpoint(self.args.model_dir)
+        checkpoint = tf.train.latest_checkpoint(self.model_dir)
 
         if not checkpoint:
-            raise FileNotFoundError('Checkpoint is not found in {}'.format(self.args.model_dir))
+            raise FileNotFoundError('Checkpoint is not found in {}'.format(self.model_dir))
         else:
-            print('Loading model checkpoint {}...'.format(self.args.model_dir))
+            print('Loading model checkpoint {}...'.format(self.model_dir))
             self.saver.restore(self.sess, checkpoint)
 
         for q in range(2):
@@ -187,9 +188,9 @@ class InfoGan:
                     z_cont[0, q] = 0
                     z_rand = np.random.uniform(-1, 1, size=[1, self.args.num_rand])
 
-                    g, z = self.sess.run([self.g, self.z], feed_dict={self.z_cat: z_cat,
-                                                                      self.z_cont: z_cont,
-                                                                      self.z_rand: z_rand})
+                    g = self.sess.run([self.g], feed_dict={self.z_cat: z_cat,
+                                                           self.z_cont: z_cont,
+                                                           self.z_rand: z_rand})
                     g = np.squeeze(g)
                     multiplier = 255.0 / g.max()
                     g = (g * multiplier).astype(np.uint8)
@@ -204,4 +205,4 @@ class InfoGan:
     def save(self, step):
         model_name = 'infogan.model'
 
-        self.saver.save(self.sess, os.path.join(self.args.model_dir, model_name), global_step=step)
+        self.saver.save(self.sess, os.path.join(self.model_dir, model_name), global_step=step)
