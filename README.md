@@ -2,7 +2,7 @@
 InfoGAN implementation in tensorflow
 ### [[paper]](https://arxiv.org/abs/1606.03657)
 
-### Dependencies
+### Installation
 Tensorflow(>=1.4)  
 OpenCV  
 NumPy  
