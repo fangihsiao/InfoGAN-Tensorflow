@@ -1,5 +1,5 @@
 # InfoGAN-tensorflow
-TensorFlow implementation of InfoGAN
+InfoGAN implementation using tensorflow
 ### [[paper]](https://arxiv.org/abs/1606.03657)
 
 ### Installation
