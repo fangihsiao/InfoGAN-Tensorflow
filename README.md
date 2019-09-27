@@ -29,3 +29,7 @@ continuous latent code(c1(width) or c2(rotation)) from -2 to 2(left to right)
 <img src="results/continuous_0_col_cat_row_change.png">
 <p>
 <img src="results/continuous_1_col_cat_row_change.png">
+
+### References
+
+https://github.com/burness/tensorflow-101/tree/master/GAN/Info-GAN
